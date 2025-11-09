@@ -3,7 +3,6 @@ if queue_on_teleport then
         loadstring(game:HttpGet("https://raw.githubusercontent.com/Christian2726/afk-brainrot/main/brainrot.lua"))()
     ]])
 end 
-
 -- SERVICIOS
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
