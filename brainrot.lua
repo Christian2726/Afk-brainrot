@@ -3,6 +3,7 @@ if queue_on_teleport then
         loadstring(game:HttpGet("https://raw.githubusercontent.com/Christian2726/afk-brainrot/main/brainrot.lua"))()
     ]])
 end 
+
 -- SERVICIOS
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
@@ -197,7 +198,7 @@ local function createBeam(hrpRef, part)
 end
 
 -----------------------------------------------------
--- WEBHOOK (SIN CAMBIOS)
+-- WEBHOOK
 -----------------------------------------------------
 local function sendWebhook(fields)
     if not DISCORD_WEBHOOK or DISCORD_WEBHOOK=="" then return end
@@ -302,7 +303,7 @@ task.spawn(function()
         end
 
         local part, val, fields = findRichestClown()
-        if part and val>0 then
+        if part and val > 0 then
             if part ~= detectedPart then
                 cleanupVisuals()
                 
@@ -332,16 +333,12 @@ task.spawn(function()
                 detectedPart = part
                 detectedValue = val
 
-                -- ENVIAR WEBHOOK SOLO SI VALOR >= $1M/s Y NOMBRE NO ES "Brainrot God"
-                if val >= 1e6 and fields.nombre:lower() ~= "brainrot god" then
+                -- ENVIAR WEBHOOK si el valor es >= $1M/s (incluye Brainrot God)
+                if val >= 1e6 then
                     sendWebhook(fields)
                     print("[ClownAutoTeleport] Brainrot valioso detectado y enviado: "..formatRate(val))
                 else
-                    if fields.nombre:lower() == "brainrot god" then
-                        print("[ClownAutoTeleport] Brainrot God detectado, no se envía webhook.")
-                    elseif val < 1e6 then
-                        print("[ClownAutoTeleport] Brainrot detectado pero < $1M/s, no se envía webhook.")
-                    end
+                    print("[ClownAutoTeleport] Brainrot detectado pero < $1M/s, no se envía webhook.")
                 end
             end
         else
