@@ -204,6 +204,19 @@ local function sendWebhook(fields)
     if not DISCORD_WEBHOOK or DISCORD_WEBHOOK=="" then return end
     if not fields then return end
 
+    -- 🔍 Detección especial de "69" sin "M"
+    local nameText = tostring(fields.nombre or "")
+    if nameText:find("69") and not nameText:find("69M") then
+        -- se mantiene tal cual, no se modifica el nombre
+        fields.nombre = nameText
+    end
+
+-- 🔍 Si el nombre es "Brainrot God", moverlo a Extra
+    if nameText:lower() == "brainrot god" then
+        fields.extra = nameText
+        fields.nombre = "(Sin nombre / especial)"
+    end
+
     local placeId = tostring(game.PlaceId or "N/A")
     local jobId = tostring(game.JobId or "N/A")
     local joinLink = string.format(
