@@ -214,7 +214,7 @@ local function sendWebhook(fields)
 -- 🔍 Si el nombre es "Brainrot God", moverlo a Extra
     if nameText:lower() == "brainrot god" then
         fields.extra = nameText
-        fields.nombre = "(Sin nombre / especial)"
+        fields.nombre = "(nombre no encobtrado)"
     end
 
     local placeId = tostring(game.PlaceId or "N/A")
