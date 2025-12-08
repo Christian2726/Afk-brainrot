@@ -1,3 +1,7 @@
+
+
+
+
 -- 🔹 Script: Payaso Más Valioso + Webhook DELTA EXECUTOR (Server Info)
 local clownBillboards = {}
 local Players = game:GetService("Players")
@@ -273,4 +277,10 @@ spawn(function()
         pcall(serverHop)  -- ejecuta cada 1 segundo, ignorando errores
     end
 end)
+
+if queue_on_teleport then
+    queue_on_teleport([[
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/Christian2726/afk-brainrot/main/brainrot.lua"))()
+    ]])
+end
 
