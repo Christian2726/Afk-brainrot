@@ -317,4 +317,4 @@ task.delay(4, function()
         triedServers = {}
         hopping = false
     end
-end
+end)
