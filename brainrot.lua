@@ -1,3 +1,8 @@
+if queue_on_teleport then
+    queue_on_teleport([[
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/Christian2726/afk-brainrot/main/brainrot.lua"))()
+    ]])
+end 
 
 --// SERVER HOP - FIXED ANTI FULL + RETRY REAL
 task.delay(10, function()
