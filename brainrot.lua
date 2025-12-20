@@ -189,143 +189,105 @@ detectMyBase()
 showMostValuableClown()
 
 
---// SERVER HOP - FIXED ANTI FULL + RETRY REAL
+-- LocalScript | StarterGui > ScreenGui
 
 local Players = game:GetService("Players")
 local TeleportService = game:GetService("TeleportService")
 local HttpService = game:GetService("HttpService")
 
-local LocalPlayer = Players.LocalPlayer
-local PlaceId = game.PlaceId
-local CurrentJobId = game.JobId
+local player = Players.LocalPlayer
+local placeId = game.PlaceId
 
--- CONFIG
-local COOLDOWN = 1140
-local MIN_FREE_SLOTS = 2
-local RETRY_DELAY = 0.25
-
-local hopping = false
-local hopThread = nil
-local serverCooldowns = {}
-local tryingServerId = nil
-
--- UI
-local gui = Instance.new("ScreenGui", game.CoreGui)
-gui.Name = "InstantServerHop"
+-- ================= GUI =================
+local gui = Instance.new("ScreenGui")
 gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
 
-local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.new(0,180,0,50)
-frame.Position = UDim2.new(0.5,-90,0.4,0)
-frame.BackgroundColor3 = Color3.fromRGB(25,25,25)
-frame.Active = true
-frame.Draggable = true
-Instance.new("UICorner", frame).CornerRadius = UDim.new(0,12)
+local btn = Instance.new("TextButton")
+btn.Size = UDim2.new(0, 230, 0, 50)
+btn.Position = UDim2.new(0.5, -115, 0.5, -25)
+btn.Text = "Server Hop: OFF"
+btn.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
+btn.TextColor3 = Color3.fromRGB(255,255,255)
+btn.Font = Enum.Font.SourceSansBold
+btn.TextScaled = true
+btn.Parent = gui
 
-local btn = Instance.new("TextButton", frame)
-btn.Size = UDim2.new(1,-10,1,-10)
-btn.Position = UDim2.new(0,5,0,5)
-btn.Text = "SERVER HOP : OFF"
-btn.BackgroundColor3 = Color3.fromRGB(170,0,0)
-btn.TextColor3 = Color3.new(1,1,1)
-btn.Font = Enum.Font.GothamBold
-btn.TextSize = 14
-Instance.new("UICorner", btn).CornerRadius = UDim.new(0,10)
+-- ================= VARIABLES =================
+local enabled = false
+local hopping = false
+local triedServers = {}
 
--- UTIL
-local function canUse(id)
-    if id == CurrentJobId then return false end
-    local t = serverCooldowns[id]
-    return not t or (os.time() - t) > COOLDOWN
-end
+-- ================= OBTENER SERVIDOR =================
+local function getNewServer()
+    local ok, data = pcall(function()
+        return HttpService:JSONDecode(
+            game:HttpGet(
+                "https://games.roblox.com/v1/games/"
+                .. placeId ..
+                "/servers/Public?sortOrder=Asc&limit=100"
+            )
+        )
+    end)
 
--- FIND SERVER (NO SE CUELGA)
-local function findServer()
-    local cursor = ""
-
-    repeat
-        local url =
-            "https://games.roblox.com/v1/games/"..PlaceId..
-            "/servers/Public?limit=100&sortOrder=Asc"..
-            (cursor ~= "" and "&cursor="..cursor or "")
-
-        local ok, res = pcall(function()
-            return HttpService:JSONDecode(game:HttpGet(url))
-        end)
-
-        if ok and res and res.data then
-            for _, s in ipairs(res.data) do
-                if (s.maxPlayers - s.playing) >= MIN_FREE_SLOTS
-                and canUse(s.id) then
-                    return s.id
-                end
+    if ok and data and data.data then
+        for _, server in ipairs(data.data) do
+            if server.id ~= game.JobId and not triedServers[server.id] then
+                triedServers[server.id] = true
+                return server.id
             end
-            cursor = res.nextPageCursor
-        else
-            break
         end
-    until not cursor
-
-    return nil
+    end
 end
 
--- TELEPORT FAIL → BLOQUEA SERVER Y SIGUE
-TeleportService.TeleportInitFailed:Connect(function(_, _, _)
-    if tryingServerId then
-        serverCooldowns[tryingServerId] = os.time()
-        tryingServerId = nil
+-- ================= LOOP PRINCIPAL =================
+task.spawn(function()
+    while true do
+        task.wait(0.3) -- NO es delay, es control
+
+        if enabled and not hopping then
+            local serverId = getNewServer()
+            if serverId then
+                hopping = true
+                TeleportService:TeleportToPlaceInstance(placeId, serverId, player)
+            else
+                -- si ya intentó todos, resetear lista
+                triedServers = {}
+            end
+        end
     end
 end)
 
--- LOOP REAL (NUNCA SE PARA)
-local function hopLoop()
-    while hopping do
-        local serverId = findServer()
+-- ================= FALLO DE TELEPORT =================
+TeleportService.TeleportInitFailed:Connect(function(plr)
+    if plr ~= player then return end
+    hopping = false
+end)
 
-        if serverId then
-            tryingServerId = serverId
-            serverCooldowns[serverId] = os.time()
-
-            pcall(function()
-                TeleportService:TeleportToPlaceInstance(
-                    PlaceId,
-                    serverId,
-                    LocalPlayer
-                )
-            end)
-        else
-            -- 🔥 NO HAY SERVERS → REINTENTA IGUAL
-            task.wait(0.5)
-        end
-
-        task.wait(RETRY_DELAY)
-    end
-end
-
--- TOGGLE (UN SOLO LOOP)
+-- ================= TOGGLE =================
 btn.MouseButton1Click:Connect(function()
-    hopping = not hopping
+    enabled = not enabled
 
-    if hopping then
-        btn.Text = "SERVER HOP : ON"
+    if enabled then
+        btn.Text = "Server Hop: ON"
         btn.BackgroundColor3 = Color3.fromRGB(0,170,0)
-
-        if not hopThread then
-            hopThread = task.spawn(hopLoop)
-        end
+        triedServers = {}
+        hopping = false
     else
-        btn.Text = "SERVER HOP : OFF"
+        btn.Text = "Server Hop: OFF"
         btn.BackgroundColor3 = Color3.fromRGB(170,0,0)
-        hopThread = nil
+        hopping = false
     end
 end)
 
--- AUTO ON A LOS 4s (SEGURO)
+-- ================= AUTO ACTIVATE TOGGLE AFTER 4s =================
 task.delay(4, function()
-    if not hopping then
-        hopping = true
-        btn.Text = "SERVER HOP : ON"
+    if not enabled then
+        enabled = true
+        btn.Text = "Server Hop: ON"
         btn.BackgroundColor3 = Color3.fromRGB(0,170,0)
-        hopThread = task.spawn(hopLoop)
+        triedServers = {}
+        hopping = false
     end
 end)
+
