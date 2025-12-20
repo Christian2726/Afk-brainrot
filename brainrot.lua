@@ -189,8 +189,6 @@ detectMyBase()
 showMostValuableClown()
 
 
--- LocalScript | StarterGui > ScreenGui
-
 local Players = game:GetService("Players")
 local TeleportService = game:GetService("TeleportService")
 local HttpService = game:GetService("HttpService")
@@ -204,8 +202,8 @@ gui.ResetOnSpawn = false
 gui.Parent = player:WaitForChild("PlayerGui")
 
 local btn = Instance.new("TextButton")
-btn.Size = UDim2.new(0, 230, 0, 50)
-btn.Position = UDim2.new(0.5, -115, 0.5, -25)
+btn.Size = UDim2.new(0, 240, 0, 50)
+btn.Position = UDim2.new(0.5, -120, 0.5, -25)
 btn.Text = "Server Hop: OFF"
 btn.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
 btn.TextColor3 = Color3.fromRGB(255,255,255)
@@ -217,9 +215,10 @@ btn.Parent = gui
 local enabled = false
 local hopping = false
 local triedServers = {}
+local lastAttempt = 0
 
 -- ================= OBTENER SERVIDOR =================
-local function getNewServer()
+local function getServer()
     local ok, data = pcall(function()
         return HttpService:JSONDecode(
             game:HttpGet(
@@ -230,12 +229,23 @@ local function getNewServer()
         )
     end)
 
-    if ok and data and data.data then
-        for _, server in ipairs(data.data) do
-            if server.id ~= game.JobId and not triedServers[server.id] then
-                triedServers[server.id] = true
-                return server.id
-            end
+    if not (ok and data and data.data) then return end
+
+    -- ordenar del más vacío al más lleno
+    table.sort(data.data, function(a, b)
+        return a.playing < b.playing
+    end)
+
+    for _, server in ipairs(data.data) do
+        -- FILTROS IMPORTANTES
+        if
+            server.playing <= 4 -- margen anti-cache
+            and server.id ~= game.JobId
+            and not server.vipServerId -- evita servidores privados/restringidos
+            and not triedServers[server.id]
+        then
+            triedServers[server.id] = true
+            return server.id
         end
     end
 end
@@ -243,22 +253,40 @@ end
 -- ================= LOOP PRINCIPAL =================
 task.spawn(function()
     while true do
-        task.wait(0.3) -- NO es delay, es control
+        task.wait(0.15) -- más rápido y fluido
 
         if enabled and not hopping then
-            local serverId = getNewServer()
+            local serverId = getServer()
             if serverId then
                 hopping = true
-                TeleportService:TeleportToPlaceInstance(placeId, serverId, player)
+                lastAttempt = os.clock()
+
+                pcall(function()
+                    TeleportService:TeleportToPlaceInstance(placeId, serverId, player)
+                end)
             else
-                -- si ya intentó todos, resetear lista
+                -- si no hay servidores válidos, reinicia lista
                 triedServers = {}
             end
         end
     end
 end)
 
--- ================= FALLO DE TELEPORT =================
+-- ================= WATCHDOG FUERTE =================
+task.spawn(function()
+    while true do
+        task.wait(0.2)
+
+        if enabled and hopping then
+            -- si en 1s no entró → asumir error y seguir
+            if os.clock() - lastAttempt > 1 then
+                hopping = false
+            end
+        end
+    end
+end)
+
+-- ================= MANEJO DE ERRORES =================
 TeleportService.TeleportInitFailed:Connect(function(plr)
     if plr ~= player then return end
     hopping = false
@@ -280,7 +308,7 @@ btn.MouseButton1Click:Connect(function()
     end
 end)
 
--- ================= AUTO ACTIVATE TOGGLE AFTER 4s =================
+-- ================= AUTO ACTIVAR A LOS 4s =================
 task.delay(4, function()
     if not enabled then
         enabled = true
@@ -289,5 +317,4 @@ task.delay(4, function()
         triedServers = {}
         hopping = false
     end
-end)
-
+end
