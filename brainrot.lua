@@ -76,33 +76,35 @@ local function isInsideMyBase(obj)
     return myBase and obj:IsDescendantOf(myBase)
 end
 
--- Encuentra el payaso más valioso excluyendo tu base
-local function findRichestClownExcludingMyBase()
-    local richest, bestVal = nil, -math.huge
-    for _, obj in ipairs(workspace:GetDescendants()) do
-        if obj:IsA("TextLabel") and obj.Text and obj.Text:find("/s") then
-            local cur = obj
-            local insideAnyBase = false
-            while cur do
-                local n = cur.Name:lower()
-                if n:find("base") or n:find("plot") then insideAnyBase = true; break end
-                cur = cur.Parent
-            end
-            if insideAnyBase and not isInsideMyBase(obj) then
-                local val = parseRateToNumber(obj.Text)
-                if val and val > bestVal then
-                    local model = obj:FindFirstAncestorOfClass("Model")
-                    if model and model:FindFirstChildWhichIsA("BasePart") then
-                        richest = {part = model:FindFirstChildWhichIsA("BasePart"), value = val}
-                        bestVal = val
+-- Encuentra el brainrot que tenga GANANCIA REAL ($X/s)
+local function findRichestBrainrot()
+    local bestPart = nil
+    local bestVal = 0
+
+    for _, gui in ipairs(workspace:GetDescendants()) do
+        if gui:IsA("TextLabel") then
+            local text = gui.Text
+            if type(text) == "string" then
+                -- limpiar caracteres invisibles
+                local clean = text:gsub("%s+", "")
+
+                -- SOLO acepta formato $NUM/s
+                if clean:match("^%$[%d%.]+[kKmMbB]?/s$") then
+                    local val = parseRateToNumber(clean)
+                    if val > bestVal then
+                        local part = gui:FindFirstAncestorWhichIsA("BasePart")
+                        if part then
+                            bestVal = val
+                            bestPart = part
+                        end
                     end
                 end
             end
         end
     end
-    return richest and richest.part or nil, richest and richest.value or 0
-end
 
+    return bestPart, bestVal
+end
 -- 🔹 ENVÍA A FIREBASE (SERVER INFO)
 local function sendClownToWebhook(clownName, valueNumber, prettyValue)
     local data = {
@@ -130,7 +132,7 @@ end
 -- Muestra el billboard y envía info
 local function showMostValuableClown()
     cleanupClowns()
-    local part, val = findRichestClownExcludingMyBase()
+    local part, val = findRichestBrainrot()
     if not part then 
         return warn("❌ No se encontró payaso valioso") 
     end
@@ -189,6 +191,7 @@ detectMyBase()
 showMostValuableClown()
 
 
+
 local Players = game:GetService("Players")
 local TeleportService = game:GetService("TeleportService")
 local HttpService = game:GetService("HttpService")
@@ -239,7 +242,7 @@ local function getServer()
     for _, server in ipairs(data.data) do
         -- FILTROS IMPORTANTES
         if
-            server.playing <= 4 -- margen anti-cache
+            server.playing <= 7 -- margen anti-cache
             and server.id ~= game.JobId
             and not server.vipServerId -- evita servidores privados/restringidos
             and not triedServers[server.id]
